@@ -1,0 +1,573 @@
+options(shiny.maxRequestSize=200*1024^2)
+library(shiny)
+library(shinydashboard)
+library(shinycssloaders)
+
+#SERVER
+library(tidyverse)
+library(openxlsx)
+library(lubridate)
+library(magrittr)
+library(ggplot2)
+library(plyr)
+library(dplyr)
+library(plotly)
+library(httr)
+library(sodium)
+library(shinyjs)
+library(DT)
+library(rpivotTable)
+library(rjson)
+#source('convertor/convertor.R')
+source('global.R')
+
+#setwd('C:/Users/LENOVO V15/Documents/sanru')
+#library('rsconnect')
+#deployApp()
+
+loginpage <- div(
+      style = "margin-left : 30%;margin-top:10%",
+      box(width = 5, "",status = "warning",
+            tags$h2("LOG IN", class = "text-center", style = "padding-top: 0;color:#333; font-weight:600;"),
+            textInput("userName", placeholder="Login", label = tagList(icon("user"), "Login")),
+            passwordInput("passwd", placeholder="Mot de passe", label = tagList(icon("unlock-alt"), "Mot de passe")),
+            br(),
+            div(
+                 style = "text-align: center;",
+                 actionButton("login", "LOG IN", style = "color: white; background-color:#3c8dbc;
+                                  padding: 10px 15px; width: 150px; cursor: pointer;
+                                  font-size: 18px; font-weight: 600;"),
+                 shinyjs::hidden(
+                    div(id = "nomatch",
+                           tags$p("Login ou mot de passe incorrect!",
+                                  style = "color: red; font-weight: 600; 
+                                  padding-top: 5px;font-size:16px;", 
+                                  class = "text-center"))),
+                     br()
+             )
+    )
+)
+
+dashboard <- tabItems(
+  
+  tabItem(tabName = "newlydiagpermonth",
+          # h3("Dashboard tab content"),
+
+          fluidRow(
+            
+            column(width = 2,
+                   
+                   box(width = NULL, status = "warning",
+                       
+                       dateInput("monthlyDiag_startDate", "Date début:",language = "fr"),
+                       
+                       dateInput("monthlyDiag_endDate", "Date fin:", language = "fr"),
+                       
+                       actionButton("btn_newlydiag", "Générer")
+                   )
+            ),
+            column(width = 12,
+                   box(width = NULL, status = "warning",
+                       h3("Résulat"),
+                       rpivotTableOutput("monthlyDiag_contents") ,
+                       downloadButton('download_file', 'Téléchargez')
+                   )
+            )
+          )
+  ),
+  
+  tabItem(tabName = "monthlytreatrate",
+          fluidRow(
+            
+            column(width = 2,
+                   
+                   box(width = NULL, status = "warning",
+                       
+                       dateInput("monthlytreat_startDate", "Date début:",language = "fr"),
+                       
+                       dateInput("monthlytreat_endDate", "Date fin:", language = "fr"),
+                       
+                       actionButton("btn_monthlytreat", "Générer")
+                   )
+            ),
+            column(width = 12,
+                   box(width = NULL, status = "warning",
+                       h3("Résulat"),
+                       rpivotTableOutput("monthlyTreat_contents") 
+                       #downloadButton('download_file', 'Téléchargez')
+                   )
+            )
+          )
+  ),
+  tabItem(tabName = "monthlycontrolrate",
+          fluidRow(
+            
+            column(width = 2,
+                   
+                   box(width = NULL, status = "warning",
+                       
+                       dateInput("monthlycont_startDate", "Date début:",language = "fr"),
+                       
+                       dateInput("monthlytcont_endDate", "Date fin:", language = "fr"),
+                       
+                       actionButton("btn_monthlycont", "Générer")
+                   )
+            ),
+            column(width = 12,
+                   box(width = NULL, status = "warning",
+                       h3("Résulat"),
+                       rpivotTableOutput("monthlyCont_contents") 
+                       #downloadButton('download_file', 'Téléchargez')
+                   )
+            )
+          )
+  ),
+  tabItem(tabName = "metadata",
+          # h3("Dashboard tab content"),
+          
+          fluidRow(
+            
+            column(width = 6,
+                   
+                   box(width = NULL, status = "warning",
+                       h3("Fichier des structures"),
+                       downloadButton('down_ou_file', 'Télécharger le fichier'),
+                       
+                       fileInput('up_ou_file', 'Charger le nouveau fichier au format XLSX', multiple = FALSE)
+                       
+                   )
+            ),
+            column(width = 6,
+                   box(width = NULL, status = "warning",
+                       h3("Fichier des éléments de données"),
+                       downloadButton('down_decc_file', 'Télécharger le fichier'),
+                       fileInput('up_decc_file', 'Charger le nouveau fichier au format XLSX', multiple = FALSE)
+                   )
+            )
+      )
+  )
+)
+
+sidebar <-  sidebarMenu(
+  menuItem("Monthly Diagnosed Rate", icon = icon("file"), tabName = "newlydiagpermonth"),
+  menuItem("Monthly Treatment Rate", icon = icon("th"), tabName = "monthlytreatrate"),
+  menuItem("Monthly Control Real", icon = icon("th"), tabName = "monthlycontrolrate")
+)
+
+ui <- dashboardPage(
+  
+  skin = "blue",
+  
+  dashboardHeader(title="HTA Indicators",uiOutput("logoutbtn")),
+  
+  dashboardSidebar(
+    
+    #sidebard
+    uiOutput("sidebarpanel")
+  ),
+  
+  dashboardBody(
+    #dashboard
+    shinyjs::useShinyjs(),
+    uiOutput("body")
+  )
+)
+getOrgUnits <- function(username, password){
+  print(paste0(BASE.URL,orgUnitsURL))
+  r <- httr::GET(paste0(BASE.URL,orgUnitsURL), httr::authenticate(username,password),
+                 httr::timeout(60))
+  r <- httr::content(r, "text")
+  # Convert the JSON to an R data structure
+  d <- jsonlite::fromJSON(r, flatten=TRUE)
+  
+  ou <- d$organisationUnits 
+  
+  orgUnits <-  ou %>% 
+    select(id,parent.name) %>%
+    dplyr::rename(orgUnitID = id, parent = parent.name)
+    return(orgUnits)
+}
+server <- function(input, output){
+  
+  login = T
+  
+  USER <- reactiveValues(login = login)
+  
+  
+  #--------------------------------------------------------------
+  #-----------------Monthly Diagnosed Rate ----------------------
+  #--------------------------------------------------------------
+  observeEvent(input$btn_newlydiag, {
+    
+    startDate = "2020-01-01"#input$monthlyDiag_startDate
+    
+    endDate = "2020-12-31"#input$monthlyDiag_endDate
+    
+    #Get org units
+    ou <- getOrgUnits(username,password)
+
+    #####---------------GET NUMERATOR
+    #Provenance
+    url <- paste0(BASE.URL,BASE.REQ,"?stage=UD8R4GcuOsO&startDate=",startDate,"&endDate=",endDate,"&dimension=ou:",BASE.DIM,"&dimension=vjNskFa2nwh&dimension=iYMDdwJ0Kzk&dimension=WfCKF3dicir&dimension=SMLeL7kXzf4&skipMeta=true&paging=false")
+    
+    r <- httr::GET(url, httr::authenticate(username,password),
+                   httr::timeout(60))
+    r <- httr::content(r, "text")
+    # Convert the JSON to an R data structure
+    d <- jsonlite::fromJSON(r, flatten=TRUE)
+
+    # Get the base data
+    data <- as.data.frame(d$rows,stringsAsFactors=FALSE)
+    
+    # Use the original response to get the names of the columns
+    names(data) <- d$headers$column
+    
+    data <- data %>%
+      dplyr::rename(orgUnitID = `Organisation unit`)
+    
+    #print(data)
+    
+    data <- left_join(data, ou, by = "orgUnitID") %>%
+      dplyr::rename(district = "parent", groupe_age = "Groupe d’age", structure = "Organisation unit name") %>%
+      select(district, orgUnitID,structure,`Sexe`,groupe_age, Uuid)
+      
+    numerator <-  data %>% 
+      group_by(district, orgUnitID,structure,`Sexe`,groupe_age) %>%
+      summarise(n=n()) %>%
+      dplyr::rename(numerator = n)
+    
+    print(numerator)
+    
+    
+    #####---------------GET DENOMINATOR
+    #Suivi patient
+    url <- paste0(BASE.URL,BASE.REQ,"?stage=xVMoiMMEaqj&startDate=",startDate,"&endDate=",endDate,"&dimension=ou:",BASE.DIM,"&dimension=vjNskFa2nwh&dimension=iYMDdwJ0Kzk&dimension=WfCKF3dicir&dimension=SMLeL7kXzf4&skipMeta=true&paging=false")
+    
+    r <- httr::GET(url, httr::authenticate(username,password),
+                   httr::timeout(60))
+    r <- httr::content(r, "text")
+    # Convert the JSON to an R data structure
+    d <- jsonlite::fromJSON(r, flatten=TRUE)
+    
+    # Get the base data
+    data <- as.data.frame(d$rows,stringsAsFactors=FALSE)
+    
+    # Use the original response to get the names of the columns
+    names(data) <- d$headers$column
+    
+    data <- data %>%
+      distinct(Uuid, .keep_all = TRUE) %>%
+      dplyr::rename(orgUnitID = `Organisation unit`)
+      
+    #print(data)
+    
+    
+    data <- left_join(data, ou, by = "orgUnitID") %>%
+      dplyr::rename(district = "parent", groupe_age = "Groupe d’age", structure = "Organisation unit name") %>%
+      select(district, orgUnitID,structure,`Sexe`,groupe_age, Uuid)
+    
+    denominator <-  data %>% 
+      group_by(district, orgUnitID,structure,`Sexe`,groupe_age) %>%
+      summarise(n=n(), .groups = 'keep') %>%
+      dplyr::rename(denominator = n)
+    
+    print(denominator)
+    
+    indicator <- left_join(numerator, denominator, by = c("district" = "district","structure" = "structure","Sexe"="Sexe", "groupe_age"="groupe_age")) %>%
+      group_by(district,structure,Sexe, groupe_age)  %>%
+      summarise(indicateur = sum(numerator/denominator), .groups = 'keep')
+    
+    print(indicator)
+    
+    output$monthlyDiag_contents = renderRpivotTable({
+      rpivotTable(
+        indicator,
+        rows = c("district","structure"),
+        cols = c("Sexe", "groupe_age"),
+        aggregatorName = "Sum",
+        vals = "indicateur",
+        width = "100%",
+        height = "500px"
+      )
+    })
+    
+  })
+  #--------------------------------------------------------------
+  #-----------------Monthly Treatment Rate ----------------------
+  #--------------------------------------------------------------
+  observeEvent(input$btn_monthlytreat, {
+    
+    print("INSIDE MAN!!!")
+    
+    startDate = "2020-01-01"#input$monthlyTreat_startDate
+    
+    endDate = "2020-12-31"#input$monthlyTreat_endDate
+    
+    #Get org units
+    ou <- getOrgUnits(username,password)
+    
+    #####---------------GET NUMERATOR
+    #Suivi
+    url <- paste0(BASE.URL,BASE.REQ,"?stage=xVMoiMMEaqj&startDate=",startDate,"&endDate=",endDate,"&dimension=ou:",BASE.DIM,"&dimension=vjNskFa2nwh&dimension=iYMDdwJ0Kzk&dimension=WfCKF3dicir&dimension=SMLeL7kXzf4&dimension=wDk1IkO7kXQ&skipMeta=true&paging=false")
+    
+    print(url)
+    
+    r <- httr::GET(url, httr::authenticate(username,password),
+                   httr::timeout(60))
+    r <- httr::content(r, "text")
+    # Convert the JSON to an R data structure
+    d <- jsonlite::fromJSON(r, flatten=TRUE)
+    
+    # Get the base data
+    data <- as.data.frame(d$rows,stringsAsFactors=FALSE)
+    
+    # Use the original response to get the names of the columns
+    names(data) <- d$headers$column
+    
+    data <- data %>%
+      distinct(Uuid, .keep_all = TRUE) %>%
+      dplyr::rename(orgUnitID = `Organisation unit`) %>%
+      filter(Traitement != "")
+    
+    data <- left_join(data, ou, by = "orgUnitID") %>%
+      dplyr::rename(district = "parent", groupe_age = "Groupe d’age", structure = "Organisation unit name") %>%
+      select(district, orgUnitID,structure,`Sexe`,groupe_age, Uuid)
+    
+    numerator <-  data %>% 
+      group_by(district, orgUnitID,structure,`Sexe`,groupe_age) %>%
+      summarise(n=n()) %>%
+      dplyr::rename(numerator = n)
+    
+    print(numerator)
+    
+    
+    #####---------------GET DENOMINATOR
+    #Suivi patient
+    url <- paste0(BASE.URL,BASE.REQ,"?stage=xVMoiMMEaqj&startDate=",startDate,"&endDate=",endDate,"&dimension=ou:",BASE.DIM,"&dimension=vjNskFa2nwh&dimension=iYMDdwJ0Kzk&dimension=WfCKF3dicir&dimension=SMLeL7kXzf4&skipMeta=true&paging=false")
+    
+    r <- httr::GET(url, httr::authenticate(username,password),
+                   httr::timeout(60))
+    r <- httr::content(r, "text")
+    # Convert the JSON to an R data structure
+    d <- jsonlite::fromJSON(r, flatten=TRUE)
+    
+    # Get the base data
+    data <- as.data.frame(d$rows,stringsAsFactors=FALSE)
+    
+    # Use the original response to get the names of the columns
+    names(data) <- d$headers$column
+    
+    data <- data %>%
+      distinct(Uuid, .keep_all = TRUE) %>%
+      dplyr::rename(orgUnitID = `Organisation unit`)
+    
+    #print(data)
+    
+    
+    data <- left_join(data, ou, by = "orgUnitID") %>%
+      dplyr::rename(district = "parent", groupe_age = "Groupe d’age", structure = "Organisation unit name") %>%
+      select(district, orgUnitID,structure,`Sexe`,groupe_age, Uuid)
+    
+    denominator <-  data %>% 
+      group_by(district, orgUnitID,structure,`Sexe`,groupe_age) %>%
+      summarise(n=n(), .groups = 'keep') %>%
+      dplyr::rename(denominator = n)
+    
+    #print(denominator)
+    
+    indicator <- left_join(numerator, denominator, by = c("district" = "district","structure" = "structure","Sexe"="Sexe", "groupe_age"="groupe_age")) %>%
+      group_by(district,structure,Sexe, groupe_age)  %>%
+      summarise(indicateur = sum(numerator/denominator), .groups = 'keep')
+    
+    #print(indicator)
+    
+    output$monthlyTreat_contents = renderRpivotTable({
+      rpivotTable(
+        indicator,
+        rows = c("district","structure"),
+        cols = c("Sexe", "groupe_age"),
+        aggregatorName = "Sum",
+        vals = "indicateur",
+        width = "100%",
+        height = "500px"
+      )
+    })
+    
+  })
+  
+  #--------------------------------------------------------------
+  #-----------------Monthly Control Rate ----------------------
+  #--------------------------------------------------------------
+  observeEvent(input$btn_monthlycont, {
+    
+    print("Monthly Control Real")
+    
+    startDate = "2021-01-01"#input$monthlyCont_startDate
+    
+    endDate = "2021-07-31"#input$monthlyCont_endDate
+    
+    #Get org units
+    ou <- getOrgUnits(username,password)
+    
+    #####---------------GET NUMERATOR
+    #Suivi
+    url <- paste0(BASE.URL,BASE.REQ,"?stage=xVMoiMMEaqj&startDate=",startDate,"&endDate=",endDate,"&dimension=ou:",BASE.DIM,"&dimension=vjNskFa2nwh&dimension=iYMDdwJ0Kzk&dimension=WfCKF3dicir&dimension=SMLeL7kXzf4&dimension=rrKGcWkFGv5&skipMeta=true&paging=false")
+    
+    print(url)
+    
+    r <- httr::GET(url, httr::authenticate(username,password),
+                   httr::timeout(60))
+    r <- httr::content(r, "text")
+    # Convert the JSON to an R data structure
+    d <- jsonlite::fromJSON(r, flatten=TRUE)
+    
+    # Get the base data
+    data <- as.data.frame(d$rows,stringsAsFactors=FALSE)
+    
+    # Use the original response to get the names of the columns
+    names(data) <- d$headers$column
+      
+    data <- data %>%
+      dplyr::rename(orgUnitID = `Organisation unit`, PA_controle = `PA Controlé`, event_date = `Event date`) %>%
+      dplyr::filter(PA_controle == "1")
+    
+    print(data)
+    
+    data <- left_join(data, ou, by = "orgUnitID") %>%
+      dplyr::rename(district = "parent", groupe_age = "Groupe d’age", structure = "Organisation unit name") %>%
+      select(district, orgUnitID,structure,`Sexe`,groupe_age, Uuid, event_date)
+      
+    numerator <-  data %>% 
+      group_by(district, orgUnitID,structure,`Sexe`,groupe_age,Uuid) %>%
+      summarise(date_event = max(event_date),n=n(), .groups = 'keep') %>%
+      dplyr::rename(numerator = n) %>%
+      select(district, orgUnitID,structure,`Sexe`,groupe_age,numerator)
+    
+    print("DATA")
+    print(numerator)
+
+    
+    #####---------------GET DENOMINATOR
+    #Suivi patient
+    url <- paste0(BASE.URL,BASE.REQ,"?stage=xVMoiMMEaqj&startDate=",startDate,"&endDate=",endDate,"&dimension=ou:",BASE.DIM,"&dimension=vjNskFa2nwh&dimension=iYMDdwJ0Kzk&dimension=WfCKF3dicir&dimension=SMLeL7kXzf4&skipMeta=true&paging=false")
+    
+    r <- httr::GET(url, httr::authenticate(username,password),
+                   httr::timeout(60))
+    r <- httr::content(r, "text")
+    # Convert the JSON to an R data structure
+    d <- jsonlite::fromJSON(r, flatten=TRUE)
+    
+    # Get the base data
+    data <- as.data.frame(d$rows,stringsAsFactors=FALSE)
+    
+    # Use the original response to get the names of the columns
+    names(data) <- d$headers$column
+    
+    data <- data %>%
+      distinct(Uuid, .keep_all = TRUE) %>%
+      dplyr::rename(orgUnitID = `Organisation unit`)
+    
+    #print(data)
+    
+    
+    data <- left_join(data, ou, by = "orgUnitID") %>%
+      dplyr::rename(district = "parent", groupe_age = "Groupe d’age", structure = "Organisation unit name") %>%
+      select(district, orgUnitID,structure,`Sexe`,groupe_age, Uuid)
+    
+    denominator <-  data %>% 
+      group_by(district, orgUnitID,structure,`Sexe`,groupe_age) %>%
+      summarise(n=n(), .groups = 'keep') %>%
+      dplyr::rename(denominator = n)
+    
+    print(denominator)
+    
+    indicator <- left_join(numerator, denominator, by = c("district" = "district","structure" = "structure","Sexe"="Sexe", "groupe_age"="groupe_age")) %>%
+      group_by(district,structure,Sexe, groupe_age)  %>%
+      summarise(indicateur = sum(numerator/denominator), .groups = 'keep')
+    
+    print(indicator)
+    
+    output$monthlyCont_contents = renderRpivotTable({
+      rpivotTable(
+        indicator,
+        rows = c("district","structure"),
+        cols = c("Sexe", "groupe_age"),
+        aggregatorName = "Sum",
+        vals = "indicateur",
+        width = "100%",
+        height = "500px"
+      )
+    })
+    
+  })
+  observe({ 
+    
+    #LOGIN
+    if (USER$login == FALSE) {
+      
+      if (!is.null(input$login)) {
+        
+        if (input$login > 0) {
+          
+          user <- isolate(input$userName)
+          
+          pass<- isolate(input$passwd)
+      
+          
+          if(nchar(username) > 0 && nchar(password) > 0) { 
+            
+            request <- paste0(BASE.URL,"me")
+            
+            res <- GET(request,authenticate(user,pass))
+            
+            
+            if(res$status == 200L) {
+              
+              USER$login <- TRUE
+              
+            } else {
+              
+              shinyjs::toggle(id = "nomatch", anim = TRUE, time = 1, animType = "fade")
+              
+              shinyjs::delay(3000, shinyjs::toggle(id = "nomatch", anim = TRUE, time = 1, animType = "fade"))
+              
+            }
+          } else {
+            
+            shinyjs::toggle(id = "nomatch", anim = TRUE, time = 1, animType = "fade")
+            
+            shinyjs::delay(3000, shinyjs::toggle(id = "nomatch", anim = TRUE, time = 1, animType = "fade"))
+          }
+        } 
+      }
+    }    
+  })
+  
+  output$logoutbtn <- renderUI({
+    
+    req(USER$login)
+    
+    tags$li(a(icon("fa fa-sign-out"), "Déconnexion", 
+              href="javascript:window.location.reload(true)"),
+              class = "dropdown", 
+              style = "font-color:#ffffff;background-color: #f39c12 !important; border: 1px solid #f39c12;
+              font-weight: bold; margin:5px; padding: 10px;")
+  })
+  
+  output$sidebarpanel <- renderUI({
+    if (USER$login == TRUE ){ 
+      sidebar
+    }
+  })
+  
+  output$body <- renderUI({
+    if (USER$login == TRUE ) {
+      dashboard
+    }
+    else {
+      loginpage
+    }
+  })
+}
+
+shinyApp(ui, server)

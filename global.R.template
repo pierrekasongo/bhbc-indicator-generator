@@ -1,0 +1,16 @@
+
+username <- "admin"
+password <- "district"
+programID <- "eTkUEzlMDZY"
+stageConsultation <- "w7o6z1aK0Xs"
+stageExamen <- "QutC7UdtPaJ"
+stageProvenance <- "UD8R4GcuOsO"
+stageSuivi <- "xVMoiMMEaqj"
+orgUnitsURL <- "organisationUnits.json?fields=id,displayName,parent[name]&paging=false"
+
+BASE.URL <- "http://localhost:8080/api/"
+
+BASE.REQ <- "analytics/events/query/eTkUEzlMDZY"
+
+BASE.DIM <- "dist0000102;dist0000101;dist0000100;dist0000103"
+
