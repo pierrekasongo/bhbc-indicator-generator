@@ -1,0 +1,11 @@
+name: bhbc
+title:
+username:
+account: generator
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 4696895
+bundleId: 5339108
+url: https://generator.shinyapps.io/bhbc/
+when: 1638876880.07428
+lastSyncTime: 1638876880.0743
