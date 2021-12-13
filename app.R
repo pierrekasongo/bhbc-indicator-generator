@@ -20,7 +20,7 @@ library(rpivotTable)
 library(rjson)
 source('global.R')
 
-#setwd('/home/pierre/Documents/bhbc')
+#setwd('/home/pierre/Documents/DEV/bhbc-indicator-generator')
 #library('rsconnect')
 #deployApp()
 
