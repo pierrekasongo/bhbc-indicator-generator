@@ -8,7 +8,6 @@ library(tidyverse)
 library(openxlsx)
 library(lubridate)
 library(magrittr)
-library(ggplot2)
 library(plyr)
 library(dplyr)
 library(plotly)
@@ -718,9 +717,10 @@ getDiagRateQuartely <- function(startDate, endDate){
   return(indicator)
 }
 
+#Login
 server <- function(input, output){
   
-  login = F
+  login = T
   
   USER <- reactiveValues(login = login)
   
@@ -730,17 +730,18 @@ server <- function(input, output){
   #--------------------------------------------------------------
   observeEvent(input$btn_newlydiag, {
     
+    
     startDate = input$monthlyDiag_startDate
     
     endDate = input$monthlyDiag_endDate
     
-    indicator <- getDiagRateMonthly(startDate, endDate)
+    indicator <- getDiagRateQuartely(startDate, endDate)
     
     output$monthlyDiag_contents = renderRpivotTable({
       rpivotTable(
         indicator,
         rows = c("district","structure","ratio"),
-        cols = c("Sexe", "groupe_age"),
+        #cols = c("Sexe", "groupe_age"),
         aggregatorName = "Sum",
         vals = "indicateur",
         width = "100%",
@@ -764,7 +765,7 @@ server <- function(input, output){
     
     #####---------------GET NUMERATOR
     #Suivi
-    url <- paste0(BASE.URL,BASE.REQ,"?stage=xVMoiMMEaqj&startDate=",startDate,"&endDate=",endDate,"&dimension=ou:",BASE.DIM,"&dimension=vjNskFa2nwh&dimension=iYMDdwJ0Kzk&dimension=WfCKF3dicir&dimension=SMLeL7kXzf4&dimension=wDk1IkO7kXQ&skipMeta=true&paging=false")
+    url <- paste0(BASE.URL,BASE.REQ,"?stage=xVMoiMMEaqj&startDate=",startDate,"&endDate=",endDate,"&dimension=ou:",BASE.DIM,"&dimension=vjNskFa2nwh&dimension=iYMDdwJ0Kzk&dimension=WfCKF3dicir&dimension=SMLeL7kXzf4&dimension=wDk1IkO7kXQ&dimension=J0Z3cUcwtWt&skipMeta=true&paging=false")
     
     print(url)
     
@@ -782,12 +783,18 @@ server <- function(input, output){
     
     data <- data %>%
       #distinct(Uuid, .keep_all = TRUE) %>%
-      dplyr::rename(orgUnitID = `Organisation unit`) %>%
-      filter(Traitement != "")
+      dplyr::rename(orgUnitID = `Organisation unit`, type_traitement = `Type de traitement`) %>%
+      filter(type_traitement == "MHD et Médicament")
 
+    print(data)
+    
     data <- left_join(data, ou, by = "orgUnitID") %>%
       dplyr::rename(district = "parent", groupe_age = "Groupe d’age", structure = "Organisation unit name") %>%
       select(district, orgUnitID,structure,`Sexe`,groupe_age, Uuid)
+    
+    
+    
+    
     
     data <-  data %>% 
       group_by(district, orgUnitID,structure,`Sexe`,groupe_age) %>%
@@ -800,7 +807,7 @@ server <- function(input, output){
       rpivotTable(
         data,
         rows = c("district","structure"),
-        cols = c("Sexe", "groupe_age"),
+        #cols = c("Sexe", "groupe_age"),
         aggregatorName = "Count",
         vals = "n",
         width = "100%",
@@ -810,23 +817,11 @@ server <- function(input, output){
     
   })
   
-  #--------------------------------------------------------------
-  #-----------------Net Systolic ----------------------
-  #--------------------------------------------------------------
-  observeEvent(input$btn_netsystolic, {
-    
-    startDate = input$netsystolic_startDate
-    
-    endDate = input$netsystolic_endDate
-    
-    #Get org units
-    ou <- getOrgUnits(username,password)
+  getSysto <- function(startDate, endDate){
     
     #####---------------GET NUMERATOR
     #Suivi
     url <- paste0(BASE.URL,BASE.REQ,"?stage=xVMoiMMEaqj&startDate=",startDate,"&endDate=",endDate,"&dimension=ou:",BASE.DIM,"&dimension=vjNskFa2nwh&dimension=iYMDdwJ0Kzk&dimension=WfCKF3dicir&dimension=SMLeL7kXzf4&dimension=iU1pq8kluwL&skipMeta=true&paging=false")
-    
-    print(url)
     
     r <- httr::GET(url, httr::authenticate(username,password),
                    httr::timeout(60))
@@ -840,35 +835,76 @@ server <- function(input, output){
     # Use the original response to get the names of the columns
     names(data) <- d$headers$column
     
-    data <- data %>%
+    return(data)
+  }
+  
+  #--------------------------------------------------------------
+  #-----------------Net Systolic ----------------------
+  #--------------------------------------------------------------
+  observeEvent(input$btn_netsystolic, {
+    
+    startDate = "2019-01-01" #input$netsystolic_startDate
+    
+    endDate = "2021-07-31" #input$netsystolic_endDate
+    
+    minData <- getSysto(startDate, endDate)
+    
+    #Get org units
+    ou <- getOrgUnits(username,password)
+    
+    #####---------------GET NUMERATOR
+    #Suivi
+ 
+    
+    first <- minData %>%
       #distinct(Uuid, .keep_all = TRUE) %>%
-      dplyr::rename(orgUnitID = `Organisation unit`) #%>%
-      #filter(Traitement != "")
+      dplyr::rename(orgUnitID = `Organisation unit`, moy_systo = `MOY SYSTO`) %>%
+      select(Uuid,orgUnitID, moy_systo) %>%
+      group_by(Uuid) %>%
+      slice_min(n = 1, "Event date")
+    
+    first <- first %>%
+      group_by(orgUnitID) %>%
+      summarise(moy1 = mean(as.numeric(moy_systo)))
+      
     
     
-    data <- left_join(data, ou, by = "orgUnitID") %>%
-      dplyr::rename(district = "parent", groupe_age = "Groupe d’age", structure = "Organisation unit name",moy_systo = "MOY SYSTO") %>%
-      group_by(district, orgUnitID,structure) %>%
-      summarise(moy = mean(moy_systo)) %>%
-      select(district, orgUnitID,structure, moy)
+    
+    maxData <- getSysto("2021-07-01", endDate)
+    
+    last <- maxData %>%
+      #distinct(Uuid, .keep_all = TRUE) %>%
+      dplyr::rename(orgUnitID = `Organisation unit`, moy_systo = `MOY SYSTO`) %>%
+      select(Uuid,orgUnitID, moy_systo) %>%
+      group_by(Uuid)  %>%
+      slice_max(n = 1, "Event date")
+    #Calculer maintenant la moyenne par structure
+    
+    last <- last %>%
+      group_by(orgUnitID) %>%
+      summarise(moy2 = mean(as.numeric(moy_systo)))
+    
+    
+    dif <- left_join(first, last, by = "orgUnitID") %>%
+      group_by(orgUnitID) %>%
+      summarise(MOY_SYST = moy1 - moy2) %>%
+      select(orgUnitID, MOY_SYST)
+  
+    
+    
+    data <- left_join(dif, ou, by = "orgUnitID") %>%
+      dplyr::rename(district = "parent", structure = "displayName") %>%
+      select(district,structure, MOY_SYST)
     
     print(data)
-    return()
     
-    data <-  data %>% 
-      group_by(district, orgUnitID,structure,`Sexe`,groupe_age) %>%
-      summarise(n=n()) #%>%
-    #dplyr::rename(numerator = n)
-    
-    print(data)
     
     output$netsystolic_contents = renderRpivotTable({
       rpivotTable(
         data,
-        rows = c("district","structure"),
-        cols = c("Sexe", "groupe_age"),
-        aggregatorName = "Count",
-        vals = "n",
+        rows = c("district","structure","MOY_SYST"),
+        aggregatorName = "Sum",
+        vals = "MOY_SYST",
         width = "100%",
         height = "500px"
       )
@@ -1057,15 +1093,17 @@ server <- function(input, output){
     
     endDate = input$monthlytreat_endDate
     
-    indicator = getTreatmentRateMonthly(startDate,endDate)    #print(indicator)
+    indicator = getTreatmentRateQuartely(startDate,endDate)    #print(indicator)
     
     #output$monthlyTreat_contents <- renderDataTable(indicator)
     
     output$monthlyTreat_contents = renderRpivotTable({
       rpivotTable(
         indicator,
-        rows = c("district","structure","ratio"),
-        columns = c("sexe","group_age"),
+        rows = c("district","structure"),
+        #cols = c("Sexe", "groupe_age"),
+        aggregatorName = "Sum",
+        vals = "indicateur",
         width = "100%",
         height = "500px"
       )
@@ -1087,7 +1125,7 @@ server <- function(input, output){
       rpivotTable(
         indicator,
         rows = c("district","structure"),
-        cols = c("Sexe", "groupe_age"),
+        #cols = c("Sexe", "groupe_age"),
         aggregatorName = "Sum",
         vals = "indicateur",
         width = "100%",
@@ -1112,7 +1150,7 @@ server <- function(input, output){
       rpivotTable(
         indicator,
         rows = c("district","structure"),
-        cols = c("Sexe", "groupe_age"),
+        #cols = c("Sexe", "groupe_age"),
         aggregatorName = "Sum",
         vals = "indicateur",
         width = "100%",
@@ -1207,15 +1245,18 @@ server <- function(input, output){
     
     indicator <- left_join(numerator, denominator, by = c("district" = "district","structure" = "structure","Sexe"="Sexe", "groupe_age"="groupe_age")) %>%
       group_by(district,structure,Sexe, groupe_age)  %>%
-      mutate(ratio = ((numerator)/(denominator))*100, .groups = 'keep') %>%
+      mutate(ratio = ((numerator)/(denominator)), .groups = 'keep') %>%
       select(district, structure, Sexe, groupe_age, ratio)
     
     print(indicator)
     
+    
     output$monthlyCont_contents = renderRpivotTable({
       rpivotTable(
         indicator,
-        rows = c("district","structure", "ratio"),
+        rows = c("district","structure"),
+        aggregatorName = "Sum",
+        vals = "ratio",
         width = "100%",
         height = "500px"
       )
