@@ -51,10 +51,10 @@ loginpage <- div(
 dashboard <- tabItems(
   
   tabItem(tabName = "newlydiagpermonth",
-          # h3("Dashboard tab content"),
+          h3("Monthly Diagonised Rate"),
 
           fluidRow(
-            
+          
             column(width = 2,
                    
                    box(width = NULL, status = "warning",
@@ -68,7 +68,7 @@ dashboard <- tabItems(
             ),
             column(width = 12,
                    box(width = NULL, status = "warning",
-                       h3("Résulat"),
+                       h3("Résultat"),
                        rpivotTableOutput("monthlyDiag_contents") ,
                        downloadButton('download_file', 'Téléchargez')
                    )
@@ -78,7 +78,7 @@ dashboard <- tabItems(
   
   tabItem(tabName = "monthlytreatrate",
           fluidRow(
-            
+            h3("Monthly Treatment Rate"),
             column(width = 2,
                    
                    box(width = NULL, status = "warning",
@@ -95,7 +95,7 @@ dashboard <- tabItems(
             # )
             column(width = 12,
                    box(width = NULL, status = "warning",
-                       h3("Résulat"),
+                       h3("Résultat"),
                        rpivotTableOutput("monthlyTreat_contents")
                        #downloadButton('download_file', 'Téléchargez')
                    )
@@ -104,7 +104,7 @@ dashboard <- tabItems(
   ),
   tabItem(tabName = "monthlycontrolrate",
           fluidRow(
-            
+            h3("Monthly Control Rate"),
             column(width = 2,
                    
                    box(width = NULL, status = "warning",
@@ -118,7 +118,7 @@ dashboard <- tabItems(
             ),
             column(width = 12,
                    box(width = NULL, status = "warning",
-                       h3("Résulat"),
+                       h3("Résultat"),
                        rpivotTableOutput("monthlyCont_contents") 
                        #downloadButton('download_file', 'Téléchargez')
                    )
@@ -127,7 +127,7 @@ dashboard <- tabItems(
   ),
   tabItem(tabName = "quarterlynewlydiag",
           fluidRow(
-            
+            h3("Quartely Diagonised Rate"),
             column(width = 2,
                    
                    box(width = NULL, status = "warning",
@@ -141,7 +141,7 @@ dashboard <- tabItems(
             ),
             column(width = 12,
                    box(width = NULL, status = "warning",
-                       h3("Résulat"),
+                       h3("Résultat"),
                        rpivotTableOutput("quartelynewly_contents") 
                        #downloadButton('download_file', 'Téléchargez')
                    )
@@ -150,7 +150,7 @@ dashboard <- tabItems(
   ),
   tabItem(tabName = "quarterlytreatrate",
           fluidRow(
-            
+            h3("Quartely Treatment Rate"),
             column(width = 2,
                    
                    box(width = NULL, status = "warning",
@@ -164,7 +164,7 @@ dashboard <- tabItems(
             ),
             column(width = 12,
                    box(width = NULL, status = "warning",
-                       h3("Résulat"),
+                       h3("Résultat"),
                        rpivotTableOutput("quartelytreat_contents") 
                        #downloadButton('download_file', 'Téléchargez')
                    )
@@ -173,7 +173,7 @@ dashboard <- tabItems(
   ),
   tabItem(tabName = "quartelycontrolrate",
           fluidRow(
-            
+            h3("Quartely Control Rate"),
             column(width = 2,
                    
                    box(width = NULL, status = "warning",
@@ -187,7 +187,7 @@ dashboard <- tabItems(
             ),
             column(width = 12,
                    box(width = NULL, status = "warning",
-                       h3("Résulat"),
+                       h3("Résultat"),
                        rpivotTableOutput("quartelycont_contents") 
                        #downloadButton('download_file', 'Téléchargez')
                    )
@@ -196,7 +196,7 @@ dashboard <- tabItems(
   ),
   tabItem(tabName = "sixmonthlycontrolrate",
           fluidRow(
-            
+            h3("Six monthly Control Rate"),
             column(width = 2,
                    
                    box(width = NULL, status = "warning",
@@ -210,7 +210,7 @@ dashboard <- tabItems(
             ),
             column(width = 12,
                    box(width = NULL, status = "warning",
-                       h3("Résulat"),
+                       h3("Résultat"),
                        rpivotTableOutput("sixmonthlycont_contents") 
                        #downloadButton('download_file', 'Téléchargez')
                    )
@@ -219,7 +219,7 @@ dashboard <- tabItems(
   ),
   tabItem(tabName = "netsystolic",
           fluidRow(
-            
+            h3("Net Systolic"),
             column(width = 2,
                    
                    box(width = NULL, status = "warning",
@@ -233,16 +233,38 @@ dashboard <- tabItems(
             ),
             column(width = 12,
                    box(width = NULL, status = "warning",
-                       h3("Résulat"),
+                       h3("Résultat"),
                        rpivotTableOutput("netsystolic_contents") 
                        #downloadButton('download_file', 'Téléchargez')
                    )
             )
           )
   ),
+  tabItem(tabName = "netsystolicbp",
+          fluidRow(
+            h3("Net Systolic BP Change"),
+            column(width = 2,
+                   
+                   box(width = NULL, status = "warning",
+                       
+                       dateInput("netsystolicbp_startDate", "Date début:",language = "fr"),
+                       
+                       dateInput("netsystolicbp_endDate", "Date fin:", language = "fr"),
+                       
+                       actionButton("btn_netsystolicbp", "Générer")
+                   )
+            ),
+            column(width = 12,
+                   box(width = NULL, status = "warning",
+                       h3("Moyenne Globale"),
+                       textOutput("netsystolicbp_contents")
+                   )
+            )
+          )
+  ),
   tabItem(tabName = "totaldiag",
           fluidRow(
-            
+            h3("Total diagnosed"),
             column(width = 2,
                    
                    box(width = NULL, status = "warning",
@@ -256,7 +278,7 @@ dashboard <- tabItems(
             ),
             column(width = 12,
                    box(width = NULL, status = "warning",
-                       h3("Résulat"),
+                       h3("Résultat"),
                        rpivotTableOutput("totaldiag_contents")
                    )
             )
@@ -264,7 +286,7 @@ dashboard <- tabItems(
   ),
   tabItem(tabName = "totaltreat",
           fluidRow(
-            
+            h3("Total Treatment"),
             column(width = 2,
                    
                    box(width = NULL, status = "warning",
@@ -278,7 +300,7 @@ dashboard <- tabItems(
             ),
             column(width = 12,
                    box(width = NULL, status = "warning",
-                       h3("Résulat"),
+                       h3("Résultat"),
                        rpivotTableOutput("totaltreat_contents") 
                        #downloadButton('download_file', 'Téléchargez')
                    )
@@ -287,7 +309,7 @@ dashboard <- tabItems(
   ),
   tabItem(tabName = "totalcontrol",
           fluidRow(
-            
+            h3("Total Control"),
             column(width = 2,
                    
                    box(width = NULL, status = "warning",
@@ -301,7 +323,7 @@ dashboard <- tabItems(
             ),
             column(width = 12,
                    box(width = NULL, status = "warning",
-                       h3("Résulat"),
+                       h3("Résultat"),
                        rpivotTableOutput("totalcontrol_contents") 
                    )
             )
@@ -309,7 +331,7 @@ dashboard <- tabItems(
   ),
   tabItem(tabName = "totalscreened",
           fluidRow(
-            
+            h3("Total Screened"),
             column(width = 2,
                    
                    box(width = NULL, status = "warning",
@@ -323,7 +345,7 @@ dashboard <- tabItems(
             ),
             column(width = 12,
                    box(width = NULL, status = "warning",
-                       h3("Résulat"),
+                       h3("Résultat"),
                        rpivotTableOutput("totalscreened_contents") 
                    )
             )
@@ -341,7 +363,7 @@ sidebar <-  sidebarMenu(
   menuItem("Quarterly Control Rate", icon = icon("th"), tabName = "quartelycontrolrate"),
   menuItem("Six monthly Control Rate", icon = icon("th"), tabName = "sixmonthlycontrolrate"),
   menuItem("Net systolic", icon = icon("th"), tabName = "netsystolic"),
-  
+  menuItem("Net systolic BP Change", icon = icon("th"), tabName = "netsystolicbp"),
   menuItem("Total diagnosed", icon = icon("th"), tabName = "totaldiag"),
   menuItem("Total treated", icon = icon("th"), tabName = "totaltreat"),
   menuItem("Total control", icon = icon("th"), tabName = "totalcontrol"),
@@ -720,7 +742,7 @@ getDiagRateQuartely <- function(startDate, endDate){
 #Login
 server <- function(input, output){
   
-  login = T
+  login = F
   
   USER <- reactiveValues(login = login)
   
@@ -843,11 +865,11 @@ server <- function(input, output){
   #--------------------------------------------------------------
   observeEvent(input$btn_netsystolic, {
     
-    startDate = "2019-01-01" #input$netsystolic_startDate
+    startDate =  input$netsystolic_startDate
     
-    endDate = "2021-07-31" #input$netsystolic_endDate
+    endDate = input$netsystolic_endDate
     
-    minData <- getSysto(startDate, endDate)
+    minData <- getSysto("2019-01-01", endDate)
     
     #Get org units
     ou <- getOrgUnits(username,password)
@@ -857,7 +879,7 @@ server <- function(input, output){
  
     
     first <- minData %>%
-      #distinct(Uuid, .keep_all = TRUE) %>%
+      drop_na()  %>%
       dplyr::rename(orgUnitID = `Organisation unit`, moy_systo = `MOY SYSTO`) %>%
       select(Uuid,orgUnitID, moy_systo) %>%
       group_by(Uuid) %>%
@@ -868,12 +890,10 @@ server <- function(input, output){
       summarise(moy1 = mean(as.numeric(moy_systo)))
       
     
-    
-    
-    maxData <- getSysto("2021-07-01", endDate)
+    maxData <- getSysto(startDate, endDate)
     
     last <- maxData %>%
-      #distinct(Uuid, .keep_all = TRUE) %>%
+      drop_na()  %>%
       dplyr::rename(orgUnitID = `Organisation unit`, moy_systo = `MOY SYSTO`) %>%
       select(Uuid,orgUnitID, moy_systo) %>%
       group_by(Uuid)  %>%
@@ -887,8 +907,9 @@ server <- function(input, output){
     
     dif <- left_join(first, last, by = "orgUnitID") %>%
       group_by(orgUnitID) %>%
-      summarise(MOY_SYST = moy1 - moy2) %>%
-      select(orgUnitID, MOY_SYST)
+      summarise(MOY_SYST = moy2 - moy1) %>%
+      select(orgUnitID, MOY_SYST) %>%
+      drop_na()
   
     
     
@@ -903,8 +924,8 @@ server <- function(input, output){
       rpivotTable(
         data,
         rows = c("district","structure","MOY_SYST"),
-        aggregatorName = "Sum",
-        vals = "MOY_SYST",
+        #aggregatorName = "Sum",
+        #vals = "MOY_SYST",
         width = "100%",
         height = "500px"
       )
@@ -912,6 +933,64 @@ server <- function(input, output){
     
   })
   
+  
+  #--------------------------------------------------------------
+  #-----------------Net Systolic BP Level----------------------
+  #--------------------------------------------------------------
+  observeEvent(input$btn_netsystolicbp, {
+    
+    startDate =  input$netsystolicbp_startDate
+    
+    endDate = input$netsystolicbp_endDate
+    
+    minData <- getSysto("2019-01-01", endDate)
+    
+    #Get org units
+    ou <- getOrgUnits(username,password)
+    
+    first <- minData %>%
+      drop_na()  %>%
+      dplyr::rename(orgUnitID = `Organisation unit`, moy_systo = `MOY SYSTO`) %>%
+      select(Uuid,orgUnitID, moy_systo) %>%
+      group_by(Uuid) %>%
+      slice_min(n = 1, "Event date")
+    
+    first <- first %>%
+      group_by(orgUnitID) %>%
+      summarise(moy1 = mean(as.numeric(moy_systo)))
+    
+    
+    maxData <- getSysto(startDate, endDate)
+    
+    last <- maxData %>%
+      drop_na()  %>%
+      dplyr::rename(orgUnitID = `Organisation unit`, moy_systo = `MOY SYSTO`) %>%
+      select(Uuid,orgUnitID, moy_systo) %>%
+      group_by(Uuid)  %>%
+      slice_max(n = 1, "Event date")
+    #Calculer maintenant la moyenne par structure
+    
+    last <- last %>%
+      drop_na()  %>%
+      group_by(orgUnitID) %>%
+      summarise(moy2 = mean(as.numeric(moy_systo)))
+     
+    
+    dif <- left_join(first, last, by = "orgUnitID") %>%
+      group_by(orgUnitID) %>%
+      summarise(MOY_SYST = moy2 - moy1) %>%
+      select(MOY_SYST) %>%
+      drop_na()
+    
+    print(dif)
+    
+    global <- mean(dif$MOY_SYST, na.rm = TRUE)
+    
+    output$netsystolicbp_contents = renderText({
+      global
+    })
+    
+  })
   #--------------------------------------------------------------
   #-----------------Total Treated ----------------------
   #--------------------------------------------------------------
